@@ -14,14 +14,12 @@ import { useSortable } from "../common/dnd/useSortable"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import type { ItemsProps } from "./card"
 import { CardWrapper } from "./card"
-import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
+import { currentSourcesAtom } from "~/atoms"
 
 const AnimationDuration = 200
 const WIDTH = 350
 export function Dnd() {
   const [items, setItems] = useAtom(currentSourcesAtom)
-  const currentColumnID = useAtomValue(currentColumnIDAtom)
-  const sortable = currentColumnID === "focus"
   const [parent] = useAutoAnimate({ duration: AnimationDuration })
   useEntireQuery(items)
   const { width } = useWindowSize()
@@ -33,7 +31,7 @@ export function Dnd() {
   if (!items.length) return null
 
   return (
-    <DndWrapper items={items} setItems={setItems} isSingleColumn={isMobile} sortable={sortable}>
+    <DndWrapper items={items} setItems={setItems} isSingleColumn={isMobile}>
       <OverlayScrollbar defer className="overflow-x-auto">
         <motion.ol
           className={isMobile
@@ -82,7 +80,7 @@ export function Dnd() {
                 },
               }}
             >
-              <SortableCardWrapper id={id} sortable={sortable} />
+              <SortableCardWrapper id={id} />
             </motion.li>
           ))}
         </motion.ol>
@@ -96,11 +94,10 @@ export function Dnd() {
   )
 }
 
-function DndWrapper({ items, setItems, isSingleColumn, sortable, children }: PropsWithChildren<{
+function DndWrapper({ items, setItems, isSingleColumn, children }: PropsWithChildren<{
   items: SourceID[]
   setItems: (items: SourceID[]) => void
   isSingleColumn: boolean
-  sortable: boolean
 }>) {
   const onDropTargetChange = useCallback(({ location, source }: BaseEventPayload<ElementDragType>) => {
     const traget = location.current.dropTargets[0]
@@ -125,8 +122,6 @@ function DndWrapper({ items, setItems, isSingleColumn, sortable, children }: Pro
     wait: AnimationDuration,
   })
   const { el } = useAtomValue(goToTopAtom)
-  if (!sortable) return children
-
   return (
     <DndContext onDropTargetChange={run} autoscroll={el ? { element: el } : undefined}>
       {children}
@@ -171,7 +166,7 @@ function CardOverlay({ id }: { id: SourceID }) {
   )
 }
 
-function SortableCardWrapper({ id, sortable }: ItemsProps & { sortable: boolean }) {
+function SortableCardWrapper({ id }: ItemsProps) {
   const {
     isDragging,
     setNodeRef,
@@ -191,7 +186,7 @@ function SortableCardWrapper({ id, sortable }: ItemsProps & { sortable: boolean 
         ref={setNodeRef}
         id={id}
         isDragging={isDragging}
-        setHandleRef={sortable ? setHandleRef : undefined}
+        setHandleRef={setHandleRef}
       />
       {OverlayContainer && createPortal(<CardOverlay id={id} />, OverlayContainer)}
     </>
