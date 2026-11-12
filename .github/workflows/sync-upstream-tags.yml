@@ -1,13 +1,16 @@
 name: sync-upstream-tags
 
-# 作用：每天从上游拉取全部 tag，推到本仓库。
-# 只需要 tags 时用 --no-tags + 单独推 refs/tags，避免把上游分支覆盖掉你的改动。
-# 权限：用内置 GITHUB_TOKEN 的 contents:write，不需要任何个人 token 或 secret。
+# 作用：每天从上游拉取全部 tag，推到本仓库。只推 refs/tags，不动你的分支。
+# 权限：用内置 GITHUB_TOKEN 的 contents:write，不需要个人 token，也不需要任何 secret 配置。
+#
+# 踩过的坑（已修）：
+#   GITHUB_TOKEN 在普通 runner 步骤里默认不存在于环境变量，必须显式 env 映射；
+#   配合 set -u 时未定义变量会直接报错退出。
 
 on:
   schedule:
     - cron: "30 3 * * *"        # UTC 03:30 = 北京时间 11:30
-  workflow_dispatch: {}         # 允许在 Actions 页面手动点一次
+  workflow_dispatch: {}         # Actions 页面可手动点一次（fork 首次必须手动跑一次才激活定时）
 
 jobs:
   sync-tags:
@@ -17,18 +20,20 @@ jobs:
     steps:
       - name: 拉上游全部 tag 并推到本仓库
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPSTREAM: newsnext/newsnow
         run: |
           set -euo pipefail
           git init -q repo && cd repo
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git remote add up "https://github.com/${UPSTREAM}.git"
-          # 只取 tag 引用及其对象，不动本仓库分支
+          before=$(git ls-remote --tags origin | wc -l)
+          # 只取 tag 引用及其对象
           git fetch -q --tags up
-          before=$(git ls-remote --tags origin 2>/dev/null | wc -l || echo 0)
-          git push -q origin 'refs/tags/*:refs/tags/*' || true
+          # 推送失败就让它失败，不要 || true 吞掉
+          git push -q origin 'refs/tags/*:refs/tags/*'
           after=$(git ls-remote --tags origin | wc -l)
-          echo "同步前 tag 数: $before  同步后: $after"
-          git ls-remote --tags origin | sed 's#.*refs/tags/##' | sort | tail -20
-        # 若 push 因同名 tag 指向不同而被拒，把上一行改成下面这行（会覆盖已有 tag）：
+          echo "同步前 tag 数: ${before}  同步后 tag 数: ${after}"
+          git ls-remote --tags origin | sed 's#.*refs/tags/##' | sort -V | tail -20
+        # 若将来上游强制移动了同名 tag，这里会被拒；届时改用下面这行（会覆盖已有 tag）：
         # git push -q --force origin 'refs/tags/*:refs/tags/*'
