@@ -1,5 +1,5 @@
 name: sync-upstream-tags
-
+# 有点小问题 任务已停止 26-11-12
 # 作用：每天从上游拉取全部 tag，推到本仓库。只推 refs/tags，不动你的分支。
 # 权限：用内置 GITHUB_TOKEN 的 contents:write，不需要个人 token，也不需要任何 secret 配置。
 #
